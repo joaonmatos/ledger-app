@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,4 +5,115 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  username     String @unique
+  passwordHash String
+  email        String @unique
+
+  ledgers           UserLedgerMembership[]
+  ownedLedgers      Ledger[]
+  expenseCredits    Expense[]
+  expenseDebits     ExpenseFractions[]
+  settlementCredits LedgerSettlement[]     @relation("CreditSettlement")
+  settlementDebits  LedgerSettlement[]     @relation("DebitSettlement")
+
+  @@map("users")
+}
+
+model Ledger {
+  id        Int       @id @default(autoincrement())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  name String
+
+  ownerId Int
+
+  owner User @relation(fields: [ownerId], references: [id])
+
+  members     UserLedgerMembership[]
+  expenses    Expense[]
+  settlements LedgerSettlement[]
+
+  @@unique([name, ownerId])
+  @@map("ledgers")
+}
+
+model UserLedgerMembership {
+  id        Int       @id @default(autoincrement())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  userId   Int
+  ledgerId Int
+
+  user   User   @relation(fields: [userId], references: [id])
+  ledger Ledger @relation(fields: [ledgerId], references: [id])
+
+  @@map("userLedgerMemberships")
+}
+
+model Expense {
+  id        Int       @id @default(autoincrement())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  millicurrencyAmount BigInt
+
+  ledgerId   Int
+  creditorId Int
+
+  ledger   Ledger @relation(fields: [ledgerId], references: [id])
+  creditor User   @relation(fields: [creditorId], references: [id])
+
+  fractions ExpenseFractions[]
+
+  @@map("expenses")
+}
+
+model ExpenseFractions {
+  id        Int       @id @default(autoincrement())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  millicurrencyAmount BigInt
+
+  expenseId Int
+  debtorId  Int
+
+  expense Expense @relation(fields: [expenseId], references: [id])
+  debtor  User    @relation(fields: [debtorId], references: [id])
+
+  @@unique([expenseId, debtorId])
+  @@map("expenseFractions")
+}
+
+model LedgerSettlement {
+  id        Int       @id @default(autoincrement())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  millicurrencyAmount BigInt
+
+  creditorId Int
+  debtorId   Int
+  ledgerId   Int
+
+  creditor User   @relation("CreditSettlement", fields: [creditorId], references: [id])
+  debtor   User   @relation("DebitSettlement", fields: [debtorId], references: [id])
+  ledger   Ledger @relation(fields: [ledgerId], references: [id])
+
+  @@map("ledgerSettlements")
 }
